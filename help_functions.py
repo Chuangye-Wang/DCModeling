@@ -1,3 +1,4 @@
+import json
 import os
 
 import numpy as np
@@ -10,10 +11,8 @@ def arrhenius(pre_factor, activ_energy, temp_kelvin, mode=1):
     """ To calculate the diffusion coefficients using Arrhenius equation.
 
     Args:
-        pre_factor: Float or list-based for pre factor in Arrhenius equation; float when mode is 1 and list-based when
-            mode = 2.
-        activ_energy: Float or list-based for activation energy in Arrhenius equation; float when mode is 1 and
-            list-based when mode = 2.
+        pre_factor: Float or list-based for pre factor in Arrhenius equation.
+        activ_energy: Float or list-based for activation energy in Arrhenius equation.
         temp_kelvin: An array or pd.Series for the temperature (in kelvin).
         mode: An int indicating the type of used Arrhenius equation.
             mode 1 for D = D_0 * exp(-Q/R/T);
@@ -22,7 +21,7 @@ def arrhenius(pre_factor, activ_energy, temp_kelvin, mode=1):
     Returns:
         An array or pd.Series for predicted diffusion coefficients.
     """
-    if mode == 1:
+    if not isinstance(pre_factor, list):
         return pre_factor * np.exp(- activ_energy / GAS_CONSTANT / temp_kelvin)
     else:
         pf1, pf2 = pre_factor
@@ -30,7 +29,50 @@ def arrhenius(pre_factor, activ_energy, temp_kelvin, mode=1):
         return pf1 * np.exp(-ae1 / GAS_CONSTANT / temp_kelvin) + pf2 * np.exp(-ae2 / GAS_CONSTANT / temp_kelvin)
 
 
-def thermodynamic_factor_calphad_engine(data, elements: list, database: str, phase="FCC_A1",  engine="Thermo-Calc"):
+def end_member_diffusion_coefs(system: str, datafile: str, temp_kelvin):
+    """
+    To read the pre factor and activation energy for end members from json datafile.
+    Args:
+        system: A string for the system.
+        datafile: A string for the path to the datafile.
+        temp_kelvin: An array or pd.Series for temperature data.
+
+    Returns:
+        A dict containing the calculated diffusion coefficients of end members.
+    """
+    with open(datafile) as file:
+        dict_data = json.load(file).get(system)
+    end_dc = {}
+    for member, coefs in dict_data.items():
+        # define it as a function of temperature.
+        end_dc[member] = arrhenius(coefs.get("D0"), coefs.get("Q"), temp_kelvin)
+
+    return end_dc
+
+
+def tracer_diffusion_coefs(model, comp1_mf, temp_kelvin, end_dc):
+    comp2_mf = 1 - comp1_mf
+    # model_name = model.name
+    interaction_expr_1, interaction_expr_2 = 0, 0
+    model_coefs_1, model_coefs_2 = model.get("A", []), model.get("B", [])
+    if len(model_coefs_1) == 1:
+        interaction_expr_1 = model_coefs_1[0]
+    elif len(model_coefs_1) == 2:
+        interaction_expr_1 = model_coefs_1[0] + model_coefs_1[1] * temp_kelvin
+
+    if len(model_coefs_2) == 1:
+        interaction_expr_2 = model_coefs_2[0]
+    elif len(model_coefs_2) == 2:
+        interaction_expr_2 = model_coefs_2[0] + model_coefs_2[1] * temp_kelvin
+
+    dc_1 = np.exp(comp1_mf * np.log(end_dc.get("AA")) + comp2_mf * np.log(end_dc.get("AB"))
+                  + interaction_expr_1 * comp1_mf * comp2_mf / GAS_CONSTANT / temp_kelvin)
+
+    dc_2 = np.exp(comp1_mf * np.log(end_dc.get("BA")) + comp2_mf * np.log(end_dc.get("BB"))
+                  + interaction_expr_2 * comp1_mf * comp2_mf / GAS_CONSTANT / temp_kelvin)
+
+
+def thermodynamic_factor_calphad_engine(data, elements: list, database: str, phase="FCC_A1", engine="Thermo-Calc"):
     """ To calculate the thermodynamic factor using CALPHAD engine.
 
     Args:
@@ -46,7 +88,7 @@ def thermodynamic_factor_calphad_engine(data, elements: list, database: str, pha
     if engine == "Thermo-Calc":
         poly_expression = 'enter-symbol function TF=x(' + elements[0] + ')/8.31451/T*mur(' + elements[0] + ').x(' + \
                           elements[0] + ');,,,,'
-        list_of_conditions = [[('T', temp_kelvin), ('X(' + elements[0] + ')',  comp_mole_frac)]
+        list_of_conditions = [[('T', temp_kelvin), ('X(' + elements[0] + ')', comp_mole_frac)]
                               for temp_kelvin, comp_mole_frac in data[['T_K', 'A_mf']].values]
         with TCPython() as session:
             calculation = (

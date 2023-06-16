@@ -1,0 +1,7 @@
+
+_python:S2208"GImport only needed names or import the module and then use its members.(³Âá…
+Ipython:S1172
+",Remove the unused function parameter "mode".(š‚ä¼úÿÿÿÿ
+Gpython:S1481G"(Remove the unused local variable "dc_2".(ßü”î8Ú÷À©Œ1
+Gpython:S1481D"(Remove the unused local variable "dc_1".(¢¥‰ù8ó²¸©Œ1
+;python:S1257"Remove this commented out code.(Ïå«¨ûÿÿÿÿ
