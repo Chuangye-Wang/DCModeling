@@ -1,0 +1,6 @@
+
+_python:S2208"GImport only needed names or import the module and then use its members.(³Âá…
+dpython:S2208"GImport only needed names or import the module and then use its members.(‘ÁŽ¥üÿÿÿÿ
+qpython:S11869"YAdd a nested comment explaining why this method is empty, or complete the implementation.(•û±Ð
+Hpython:S1172^"0Remove the unused function parameter "filename".(‘ì›ç
+Apython:S108ƒ")Either remove or fill this block of code.(ã‘Û¾

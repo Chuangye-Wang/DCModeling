@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -7,22 +9,69 @@ from help_functions import *
 
 
 class Model:
-    def __init__(self):
+    def __init__(self, elements: list, phase: str = "FCC_A1"):
         """
-        To initialize the EndMemberModel class.
+        Args:
+            elements: A list of elements in the system.
+            phase: A string for the structure in the system.
         """
         # DataFrame to keep the experimental data
         self.data = None
+        elements.sort()
+        self.elements = elements
+        self.system = "".join(elements)
+        self.phase = phase
         self.interaction_parameters = None
 
-    def load_interaction_parameters(self):
+    def load_interaction_parameters(self, datafile):
+        """ To load the interaction parameters in the Gibbs energy function.
+
+        Args:
+            datafile: A string for the path to the datafile.
+
+        Returns:
+            None.
+        """
+        with open(datafile) as file:
+            json_data = json.load(file)
+        self.interaction_parameters = json_data.get(self.system).get(self.phase)
+
+    def load_data_from_excel(self, datafile):
+        """ To load the diffusion coefficient data from Excel format.
+
+        Args:
+            datafile: A string for the path to the datafile.
+
+        Returns:
+            None.
+
+        Raises: TypeError when the format of datafile is not included.
+        """
+        if datafile.endswith('.xlsx'):
+            self.data = pd.read_excel(datafile)
+        elif datafile.endswith('.csv'):
+            self.data = pd.read_csv(datafile)
+        else:
+            raise TypeError("The extension of the file should be .csv or .xlsx.")
+
+    def load_data_from_json(self, datafile):
         pass
 
-    def thermodynamic_factor(self, database_mode="json"):
+    def thermodynamic_factor(self, database_mode="json", database="TCNI11"):
+        """
+        To calculate thermodynamic factor in two different ways.
+        Args:
+            database_mode: A string indicating the format of data file source.
+            database: A string indicating the database. It is a path to the database file when using self-defined
+                database, and it is a database name according to the selected CALPHAD engine.
+
+        Returns:
+            None.
+        """
         if database_mode.lower() == "json":
             thermodynamic_factor_user_defined(self.interaction_parameters)
         elif database_mode.lower() == "calphad":
-            thermodynamic_factor_calphad_engine(self.data)
+            thermodynamic_factor_calphad_engine(self.data, self.elements, database, self.phase)
 
 
 class EndMemberModel:
