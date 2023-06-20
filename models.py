@@ -8,7 +8,7 @@ from constants import *
 from help_functions import *
 
 
-class Model:
+class DiffusivityData:
     def __init__(self, elements: list, phase: str = "FCC_A1"):
         """
         Args:
@@ -21,26 +21,18 @@ class Model:
         self.elements = elements
         self.system = "".join(elements)
         self.phase = phase
-        self.interaction_parameters = None
+        self.thermodynamic_interaction_parameters = None
+        self.end_dc = None
 
-    def load_interaction_parameters(self, datafile):
-        """ To load the interaction parameters in the Gibbs energy function.
-
-        Args:
-            datafile: A string for the path to the datafile.
-
-        Returns:
-            None.
-        """
-        with open(datafile) as file:
-            json_data = json.load(file)
-        self.interaction_parameters = json_data.get(self.system).get(self.phase)
+        # unit
+        self.unit = {"diffusion coefficient": "m^2/s"}
 
     def load_data_from_excel(self, datafile):
         """ To load the diffusion coefficient data from Excel format.
 
         Args:
             datafile: A string for the path to the datafile.
+            # process_data: A bool value for preprocessing loaded data before use it.
 
         Returns:
             None.
@@ -54,10 +46,40 @@ class Model:
         else:
             raise TypeError("The extension of the file should be .csv or .xlsx.")
 
-    def load_data_from_json(self, datafile):
-        pass
+        # if process_data:
+        if "A_mp" in self.data.columns:
+            self.data["comp_A_mf"] = self.data["A_mp"] / 100
+            self.data["comp_B_mf"] = 1 - self.data["comp_A_mf"]
 
-    def thermodynamic_factor(self, database_mode="json", database="TCNI11"):
+        if "T_C" in self.data.columns:
+            self.data["temp_celsius"] = self.data["T_C"]
+            self.data["temp_kelvin"] = self.data["temp_celsius"] + CELSIUS_KELVIN_OFFSET
+
+    def load_interaction_parameters(self, datafile):
+        """ To load the thermodynamic interaction parameters in the Gibbs energy function.
+
+        Args:
+            datafile: A string for the path to the datafile.
+
+        Returns:
+            None.
+        """
+        with open(datafile) as file:
+            json_data = json.load(file)
+        self.thermodynamic_interaction_parameters = json_data.get(self.system).get(self.phase)
+
+    def end_member_calc(self, datafile):
+        """
+        To load the end member (self and impurity diffusion coefficients) data from json files.
+        Args:
+            datafile: A string for the directory path to the datafile.
+
+        Returns:
+            None
+        """
+        self.end_dc = end_member_diffusion_coefs(self.system, datafile, self.data.temp_kelvin)
+
+    def thermodynamic_factor_calc(self, database_mode="json", database="TCNI11"):
         """
         To calculate thermodynamic factor in two different ways.
         Args:
@@ -69,12 +91,16 @@ class Model:
             None.
         """
         if database_mode.lower() == "json":
-            thermodynamic_factor_user_defined(self.interaction_parameters)
+            if self.thermodynamic_interaction_parameters is None:
+                raise ValueError("Please define thermodynamic_interaction_parameters first!")
+            self.data["TF"] = thermodynamic_factor_user_defined(self.thermodynamic_interaction_parameters,
+                                                                self.data["comp_A_mf"], self.data["comp_B_mf"],
+                                                                self.data["temp_kelvin"])
         elif database_mode.lower() == "calphad":
-            thermodynamic_factor_calphad_engine(self.data, self.elements, database, self.phase)
+            self.data["TF"] = thermodynamic_factor_calphad_engine(self.data, self.elements, database, self.phase)
 
 
-class EndMemberModel:
+class EndMemberData:
     """ The model for predicting self and impurity diffusion coefficients using Arrhenius equation.
     """
 
@@ -91,11 +117,11 @@ class EndMemberModel:
         # the activation energy in arrhenius equation
         self.activ_energy = None
 
-    def load_data(self, filename):
+    def load_data(self, file_path):
         """ To load the data for diffusion coefficients and temperature (in kelvin)
 
         Args:
-            filename: A string for the path to the datafile.
+            file_path: A string for the path to the datafile.
 
         Returns:
             None
@@ -109,6 +135,8 @@ class EndMemberModel:
             elif "T_C" in data.columns:
                 self.temp_celsius = data["T_C"]
                 self.temp_kelvin = data["T_C"] + CELSIUS_KELVIN_OFFSET
+            else:
+                raise ValueError("No T_K or T_C column in the datafile. So the temperature data is not clear.")
 
     def fitting(self, mode=1):
         """ To fit the arrhenius equation D = D_0 * exp(-Q/R/T) or D = D_0 * exp(-Q_0/R/T) + D_1 * exp(-Q_1/R/T)
@@ -155,9 +183,9 @@ class EndMemberModel:
 
 
 if __name__ == "__main__":
-    model = EndMemberModel()
-    file_path = "./examples/impurity_data_Ag_in_Cu.csv"
-    model.load_data(file_path)
+    model = EndMemberData()
+    file_p = "./examples/impurity_data_Ag_in_Cu.csv"
+    model.load_data(file_p)
     model.fitting()
     print(model.pre_factor, model.activ_energy)
     model.plot()
