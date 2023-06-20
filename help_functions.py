@@ -7,23 +7,26 @@ from tc_python import TCPython
 from constants import *
 
 
-def arrhenius(pre_factor, activ_energy, temp_kelvin, mode=1):
+def arrhenius(pre_factor, activ_energy, temp_kelvin):
     """ To calculate the diffusion coefficients using Arrhenius equation.
 
     Args:
         pre_factor: Float or list-based for pre factor in Arrhenius equation.
+            float for D = D_0 * exp(-Q/R/T);
+            list-based for D = D_0 * exp(-Q_0/R/T) + D_1 * exp(-Q_1/R/T).
         activ_energy: Float or list-based for activation energy in Arrhenius equation.
         temp_kelvin: An array or pd.Series for the temperature (in kelvin).
-        mode: An int indicating the type of used Arrhenius equation.
-            mode 1 for D = D_0 * exp(-Q/R/T);
-            mode 2 for D = D_0 * exp(-Q_0/R/T) + D_1 * exp(-Q_1/R/T).
 
     Returns:
         An array or pd.Series for predicted diffusion coefficients.
     """
-    if not isinstance(pre_factor, list):
+    # if isinstance(temp_kelvin, list):
+    #     temp_kelvin = np.array(temp_kelvin)
+    if isinstance(pre_factor, (float, int)):
         return pre_factor * np.exp(- activ_energy / GAS_CONSTANT / temp_kelvin)
     else:
+        if len(pre_factor) != 2 or len(activ_energy) != 2:
+            raise ValueError("Check the length of pre_factor and activ_energy.")
         pf1, pf2 = pre_factor
         ae1, ae2 = activ_energy
         return pf1 * np.exp(-ae1 / GAS_CONSTANT / temp_kelvin) + pf2 * np.exp(-ae2 / GAS_CONSTANT / temp_kelvin)
@@ -50,26 +53,65 @@ def end_member_diffusion_coefs(system: str, datafile: str, temp_kelvin):
     return end_dc
 
 
-def tracer_diffusion_coefs(model, comp1_mf, temp_kelvin, end_dc):
-    comp2_mf = 1 - comp1_mf
-    # model_name = model.name
-    interaction_expr_1, interaction_expr_2 = 0, 0
-    model_coefs_1, model_coefs_2 = model.get("A", []), model.get("B", [])
-    if len(model_coefs_1) == 1:
-        interaction_expr_1 = model_coefs_1[0]
-    elif len(model_coefs_1) == 2:
-        interaction_expr_1 = model_coefs_1[0] + model_coefs_1[1] * temp_kelvin
+def tracer_diffusion_coefs(model_params, comp1_mf, temp_kelvin, end_dc):
+    """
+    To calculate tracer diffusion coefficients.
+    Args:
+        model_params: A list of parameters in the diffusion model.
+        comp1_mf: An array-like type with composition information in it.
+        temp_kelvin: An array-like with temperature information in it.
+        end_dc: A dict-like with four end members' diffusion coefficient data.
 
-    if len(model_coefs_2) == 1:
-        interaction_expr_2 = model_coefs_2[0]
-    elif len(model_coefs_2) == 2:
-        interaction_expr_2 = model_coefs_2[0] + model_coefs_2[1] * temp_kelvin
+    Returns:
+        An array-like containing calculated tracer diffusion coefficients.
+    """
+    comp2_mf = 1 - comp1_mf
+    interaction_expr_1, interaction_expr_2 = 0, 0
+    if len(model_params) == 0 or model_params is None:
+        pass
+    elif len(model_params) == 1:
+        interaction_expr_1, interaction_expr_2 = model_params[0], model_params[0]
+    elif len(model_params) == 2:
+        interaction_expr_1, interaction_expr_2 = model_params[0], model_params[1]
+    elif len(model_params) == 4:
+        interaction_expr_1 = model_params[0] + model_params[1] * temp_kelvin
+        interaction_expr_2 = model_params[2] + model_params[3] * temp_kelvin
+    else:
+        raise ValueError("The size of model_params is not correct.")
 
     dc_1 = np.exp(comp1_mf * np.log(end_dc.get("AA")) + comp2_mf * np.log(end_dc.get("AB"))
                   + interaction_expr_1 * comp1_mf * comp2_mf / GAS_CONSTANT / temp_kelvin)
 
     dc_2 = np.exp(comp1_mf * np.log(end_dc.get("BA")) + comp2_mf * np.log(end_dc.get("BB"))
                   + interaction_expr_2 * comp1_mf * comp2_mf / GAS_CONSTANT / temp_kelvin)
+
+    return dc_1, dc_2
+
+
+def intrinsic_diffusion_coefs(model, comp1_mf, temp_kelvin, thermodynamic_factor, end_dc):
+    dc_1, dc_2 = tracer_diffusion_coefs(model, comp1_mf, temp_kelvin, end_dc)
+
+    return thermodynamic_factor * dc_1, thermodynamic_factor * dc_2
+
+
+def darken(model, comp1_mf, temp_kelvin, thermodynamic_factor, end_dc):
+    intrinsic_d_1, intrinsic_d_2 = intrinsic_diffusion_coefs(model, comp1_mf, temp_kelvin, thermodynamic_factor, end_dc)
+
+    return comp1_mf * intrinsic_d_1 + (1 - comp1_mf) * intrinsic_d_2
+
+
+def mean_square_error(y, y_pred, weight):
+    """
+    To calculate the mean square error with weight.
+    Args:
+        y: An array-like for original data
+        y_pred: An array-like for predicted data.
+        weight: An array-like for the weight assigned on each data sample.
+
+    Returns:
+        A float of the mean square error.
+    """
+    return 0.5 * np.sum((np.log(y_pred / y) * weight)**2)
 
 
 def thermodynamic_factor_calphad_engine(data, elements: list, database: str, phase="FCC_A1", engine="Thermo-Calc"):
