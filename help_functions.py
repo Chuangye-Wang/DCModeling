@@ -2,7 +2,7 @@ import json
 import os
 
 import numpy as np
-from tc_python import TCPython
+from tc_python import *
 
 from constants import *
 
@@ -32,11 +32,11 @@ def arrhenius(pre_factor, activ_energy, temp_kelvin):
         return pf1 * np.exp(-ae1 / GAS_CONSTANT / temp_kelvin) + pf2 * np.exp(-ae2 / GAS_CONSTANT / temp_kelvin)
 
 
-def end_member_diffusion_coefs(system: str, datafile: str, temp_kelvin):
+def end_member_diffusion_coefs(elements: list, datafile: str, temp_kelvin):
     """
     To read the pre factor and activation energy for end members from json datafile.
     Args:
-        system: A string for the system.
+        elements: A list for the elements in the alloy system.
         datafile: A string for the path to the datafile.
         temp_kelvin: An array or pd.Series for temperature data.
 
@@ -44,11 +44,14 @@ def end_member_diffusion_coefs(system: str, datafile: str, temp_kelvin):
         A dict containing the calculated diffusion coefficients of end members.
     """
     with open(datafile) as file:
-        dict_data = json.load(file).get(system)
+        dict_data = json.load(file)
     end_dc = {}
-    for member, coefs in dict_data.items():
-        # define it as a function of temperature.
-        end_dc[member] = arrhenius(coefs.get("D0"), coefs.get("Q"), temp_kelvin)
+    for elem1, label1 in zip(elements, ["A", "B"]):
+        for elem2, label2 in zip(elements, ["A", "B"]):
+            # calculate end member diffusion coefficients as a function of temperature.
+            end_dc[label1+label2] = arrhenius(dict_data.get(elem1).get(elem2).get("D0"),
+                                              dict_data.get(elem1).get(elem2).get("Q"),
+                                              temp_kelvin)
 
     return end_dc
 
@@ -100,7 +103,7 @@ def darken(model, comp1_mf, temp_kelvin, thermodynamic_factor, end_dc):
     return comp1_mf * intrinsic_d_1 + (1 - comp1_mf) * intrinsic_d_2
 
 
-def mean_square_error(y, y_pred, weight):
+def total_square_error(y, y_pred, weight=1):
     """
     To calculate the mean square error with weight.
     Args:
@@ -111,6 +114,8 @@ def mean_square_error(y, y_pred, weight):
     Returns:
         A float of the mean square error.
     """
+
+    """ Double check if it needs to add 0.5 in the return function/expression."""
     return 0.5 * np.sum((np.log(y_pred / y) * weight)**2)
 
 
@@ -131,26 +136,26 @@ def thermodynamic_factor_calphad_engine(data, elements: list, database: str, pha
         poly_expression = 'enter-symbol function TF=x(' + elements[0] + ')/8.31451/T*mur(' + elements[0] + ').x(' + \
                           elements[0] + ');,,,,'
         list_of_conditions = [[('T', temp_kelvin), ('X(' + elements[0] + ')', comp_mole_frac)]
-                              for temp_kelvin, comp_mole_frac in data[['T_K', 'A_mf']].values]
+                              for temp_kelvin, comp_mole_frac in data[['temp_kelvin', 'comp_A_mf']].values]
         with TCPython() as session:
             calculation = (
                 session
-                # .set_cache_folder(os.path.basename(__file__) + "_cache")
-                .select_database_and_elements(database, elements)
-                .without_default_phases()
-                .select_phase(phase)
-                .get_system()
-                .with_batch_equilibrium_calculation()
-                .run_poly_command(poly_expression)
-                .set_condition(list_of_conditions[0][0][0], list_of_conditions[0][0][1])
-                .set_condition(list_of_conditions[0][1][0], list_of_conditions[0][1][1])
-                .disable_global_minimization())
+                    # .set_cache_folder(os.path.basename(__file__) + "_cache")
+                    .select_database_and_elements(database, elements)
+                    .without_default_phases()
+                    .select_phase(phase)
+                    .get_system()
+                    .with_batch_equilibrium_calculation()
+                    .run_poly_command(poly_expression)
+                    .set_condition(list_of_conditions[0][0][0], list_of_conditions[0][0][1])
+                    .set_condition(list_of_conditions[0][1][0], list_of_conditions[0][1][1])
+                    .disable_global_minimization())
+            # set all conditions.
+            calculation.set_conditions_for_equilibria(list_of_conditions)
+            # calculate the thermodynamic factor
+            results = calculation.calculate(['TF'])
 
-        calculation.set_conditions_for_equilibria(list_of_conditions)
-        # calculate the thermodynamic factor
-        results = calculation.calculate(['TF'])
-
-        return results.get_values_of('TF')
+            return results.get_values_of('TF')
 
 
 def thermodynamic_factor_user_defined(interaction_parameters: dict, comps_1, comps_2, temp_kelvin):

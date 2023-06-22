@@ -77,13 +77,13 @@ class DiffusivityData:
         Returns:
             None
         """
-        self.end_dc = end_member_diffusion_coefs(self.system, datafile, self.data.temp_kelvin)
+        self.end_dc = end_member_diffusion_coefs(self.elements, datafile, self.data.temp_kelvin)
 
-    def thermodynamic_factor_calc(self, database_mode="json", database="TCNI11"):
+    def thermodynamic_factor_calc(self, database_mode="json", database="TCNI11", engine="Thermo-Calc"):
         """
         To calculate thermodynamic factor in two different ways.
         Args:
-            database_mode: A string indicating the format of data file source.
+            database_mode: A string indicating the format of data file source. ("json", "calphad")
             database: A string indicating the database. It is a path to the database file when using self-defined
                 database, and it is a database name according to the selected CALPHAD engine.
 
@@ -97,7 +97,34 @@ class DiffusivityData:
                                                                 self.data["comp_A_mf"], self.data["comp_B_mf"],
                                                                 self.data["temp_kelvin"])
         elif database_mode.lower() == "calphad":
-            self.data["TF"] = thermodynamic_factor_calphad_engine(self.data, self.elements, database, self.phase)
+            self.data["TF"] = thermodynamic_factor_calphad_engine(self.data, elements=self.elements, database=database,
+                                                                  phase=self.phase, engine=engine)
+
+    def diffusion_coefs_calc(self, coefs):
+        """
+        To calculate the diffusion coefficients using the diffusion model.
+        Returns:
+            None.
+        """
+        tracer_dc1, tracer_dc2 = tracer_diffusion_coefs(coefs, self.data.comp_A_mf,
+                                                        self.data.temp_kelvin,
+                                                        self.end_dc)
+        intrinsic_dc1 = tracer_dc1 * self.data.TF
+        intrinsic_dc2 = tracer_dc2 * self.data.TF
+        inter_dc = \
+            self.data.comp_A_mf * intrinsic_dc2 + \
+            self.data.comp_B_mf * intrinsic_dc1
+        diffusion_types = pd.get_dummies(self.data.Dtype)
+        diffusion_elements = pd.get_dummies(self.data.Element)
+
+        diffusion_coefs = \
+            diffusion_types.get("DC", 0) * inter_dc + \
+            diffusion_types.get("DT", 0) * diffusion_elements.get("A", 0) * tracer_dc1 + \
+            diffusion_types.get("DT", 0) * diffusion_elements.get("B", 0) * tracer_dc2 + \
+            diffusion_types.get("DI", 0) * diffusion_elements.get("A", 0) * intrinsic_dc1 + \
+            diffusion_types.get("DI", 0) * diffusion_elements.get("B", 0) * intrinsic_dc2
+
+        return diffusion_coefs
 
 
 class EndMemberData:
