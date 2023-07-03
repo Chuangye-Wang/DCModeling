@@ -2,6 +2,7 @@ import json
 import os
 
 import numpy as np
+import pandas as pd
 from tc_python import *
 
 from constants import *
@@ -49,9 +50,9 @@ def end_member_diffusion_coefs(elements: list, datafile: str, temp_kelvin):
     for elem1, label1 in zip(elements, ["A", "B"]):
         for elem2, label2 in zip(elements, ["A", "B"]):
             # calculate end member diffusion coefficients as a function of temperature.
-            end_dc[label1+label2] = arrhenius(dict_data.get(elem1).get(elem2).get("D0"),
-                                              dict_data.get(elem1).get(elem2).get("Q"),
-                                              temp_kelvin)
+            end_dc[label1 + label2] = arrhenius(dict_data.get(elem1).get(elem2).get("D0"),
+                                                dict_data.get(elem1).get(elem2).get("Q"),
+                                                temp_kelvin)
 
     return end_dc
 
@@ -91,16 +92,61 @@ def tracer_diffusion_coefs(model_params, comp1_mf, temp_kelvin, end_dc):
     return dc_1, dc_2
 
 
-def intrinsic_diffusion_coefs(model, comp1_mf, temp_kelvin, thermodynamic_factor, end_dc):
-    dc_1, dc_2 = tracer_diffusion_coefs(model, comp1_mf, temp_kelvin, end_dc)
+def intrinsic_diffusion_coefs(model_params, comp1_mf, temp_kelvin, thermodynamic_factor, end_dc):
+    """
+    To calculate intrinsic diffusion coefficients.
+    Args:
+        model_params: A list of parameters in the diffusion model.
+        comp1_mf: An array-like type with composition information in it.
+        temp_kelvin: An array-like with temperature information in it.
+        thermodynamic_factor: An array-like with thermodynamic factors information in it.
+        end_dc: A dict-like with four end members' diffusion coefficient data.
+
+    Returns:
+        An array-like containing calculated intrinsic diffusion coefficients.
+    """
+    dc_1, dc_2 = tracer_diffusion_coefs(model_params, comp1_mf, temp_kelvin, end_dc)
 
     return thermodynamic_factor * dc_1, thermodynamic_factor * dc_2
 
 
-def darken(model, comp1_mf, temp_kelvin, thermodynamic_factor, end_dc):
-    intrinsic_d_1, intrinsic_d_2 = intrinsic_diffusion_coefs(model, comp1_mf, temp_kelvin, thermodynamic_factor, end_dc)
+def darken(model_params, comp1_mf, temp_kelvin, thermodynamic_factor, end_dc):
+    """
+    To calculate inter-diffusion coefficients.
+    Args:
+        model_params: A list of parameters in the diffusion model.
+        comp1_mf: An array-like type with composition information in it.
+        temp_kelvin: An array-like with temperature information in it.
+        thermodynamic_factor: An array-like with thermodynamic factors information in it.
+        end_dc: A dict-like with four end members' diffusion coefficient data.
 
-    return comp1_mf * intrinsic_d_1 + (1 - comp1_mf) * intrinsic_d_2
+    Returns:
+        An array-like containing calculated inter-diffusion coefficients.
+    """
+    intrinsic_d_1, intrinsic_d_2 = intrinsic_diffusion_coefs(model_params, comp1_mf, temp_kelvin, thermodynamic_factor,
+                                                             end_dc)
+
+    return (1 - comp1_mf) * intrinsic_d_1 + comp1_mf * intrinsic_d_2
+
+
+def binary_diffusion_coefs(model_params, comp1_mf, temp_kelvin, thermodynamic_factor, end_dc):
+    """
+    To calculate tracer, intrinsic, and inter diffusivity.
+    Args:
+        model_params: A list of parameters in the diffusion model.
+        comp1_mf: An array-like type with composition information in it.
+        temp_kelvin: An array-like with temperature information in it.
+        thermodynamic_factor: An array-like with thermodynamic factors information in it.
+        end_dc: A dict-like with four end members' diffusion coefficient data.
+
+    Returns:
+        A dict containing all calculated values of different types of D.
+    """
+    dt_1, dt_2 = tracer_diffusion_coefs(model_params, comp1_mf, temp_kelvin, end_dc)
+    di_1, di_2 = thermodynamic_factor * dt_1, thermodynamic_factor * dt_2
+    dc = (1 - comp1_mf) * di_2 + comp1_mf * di_1
+
+    return {"DTA": dt_1, "DTB": dt_2, "DIA": di_1, "DIB": di_2, "DC": dc}
 
 
 def total_square_error(y, y_pred, weight=1):
@@ -116,7 +162,7 @@ def total_square_error(y, y_pred, weight=1):
     """
 
     """ Double check if it needs to add 0.5 in the return function/expression."""
-    return 0.5 * np.sum((np.log(y_pred / y) * weight)**2)
+    return 0.5 * np.sum((np.log(y_pred / y) * weight) ** 2)
 
 
 def thermodynamic_factor_calphad_engine(data, elements: list, database: str, phase="FCC_A1", engine="Thermo-Calc"):
@@ -140,16 +186,16 @@ def thermodynamic_factor_calphad_engine(data, elements: list, database: str, pha
         with TCPython() as session:
             calculation = (
                 session
-                    # .set_cache_folder(os.path.basename(__file__) + "_cache")
-                    .select_database_and_elements(database, elements)
-                    .without_default_phases()
-                    .select_phase(phase)
-                    .get_system()
-                    .with_batch_equilibrium_calculation()
-                    .run_poly_command(poly_expression)
-                    .set_condition(list_of_conditions[0][0][0], list_of_conditions[0][0][1])
-                    .set_condition(list_of_conditions[0][1][0], list_of_conditions[0][1][1])
-                    .disable_global_minimization())
+                # .set_cache_folder(os.path.basename(__file__) + "_cache")
+                .select_database_and_elements(database, elements)
+                .without_default_phases()
+                .select_phase(phase)
+                .get_system()
+                .with_batch_equilibrium_calculation()
+                .run_poly_command(poly_expression)
+                .set_condition(list_of_conditions[0][0][0], list_of_conditions[0][0][1])
+                .set_condition(list_of_conditions[0][1][0], list_of_conditions[0][1][1])
+                .disable_global_minimization())
             # set all conditions.
             calculation.set_conditions_for_equilibria(list_of_conditions)
             # calculate the thermodynamic factor
@@ -185,3 +231,16 @@ def thermodynamic_factor_user_defined(interaction_parameters: dict, comps_1, com
             item2 += k * (k - 1) * interaction_param_values * (comps_1 - comps_2) ** (k - 2)
 
     return 1 - 2 * comps_1 * comps_2 / GAS_CONSTANT / temp_kelvin * (item1 - 2 * comps_1 * comps_2 * item2)
+
+
+def comp_temp_dataframe(comps: list, temps: list, element="A", comp_unit="mole_fraction", temp_unit="celsius"):
+    if comp_unit.lower() == "mole_percent":
+        comps /= ATOMIC_PERCENT_MAX
+    if temp_unit.lower() == "kelvin":
+        temps -= CELSIUS_KELVIN_OFFSET
+    if element == "B":
+        comps = [1 - comp for comp in comps]
+    comp_x, temp_y = np.meshgrid(comps, temps)
+    comp_1_mf, temp_celsius = comp_x.flatten(), temp_y.flatten()
+    return pd.DataFrame({"comp_A_mf": comp_1_mf, "comp_B_mf": 1 - comp_1_mf,
+                         "temp_celsius": temp_celsius, "temp_kelvin": temp_celsius + CELSIUS_KELVIN_OFFSET})

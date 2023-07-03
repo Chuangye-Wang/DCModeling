@@ -1,9 +1,12 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
+
+import constants
 
 matplotlib.rcdefaults()
 matplotlib.rcParams['xtick.top'] = True
@@ -16,8 +19,10 @@ matplotlib.rcParams['lines.markersize'] = 10
 matplotlib.rcParams['xtick.minor.size'] = 2
 matplotlib.rcParams['ytick.minor.size'] = 2
 matplotlib.rcParams['xtick.labelsize'] = 12
-matplotlib.rcParams['ytick.labelsize'] = 12
-matplotlib.rcParams['axes.labelsize'] = 12
+
+
+# matplotlib.rcParams['ytick.labelsize'] = 12
+# matplotlib.rcParams['axes.labelsize'] = 12
 
 
 def exp_vs_pred_plot(df, model, ax=None, ax_legend=None, off_value=3, logx=True, logy=True, show_mse=True, **kwargs):
@@ -59,56 +64,73 @@ def exp_vs_pred_plot(df, model, ax=None, ax_legend=None, off_value=3, logx=True,
     ax.get_legend().remove()
 
 
-# def plot_DvsX(diffusivity_data, literature_list, diffusion_type, ax, axL, xlim2 = [], **kwargs):
-#     '''
-#     Dtype : string
-#         Type of diffusion coefficients to plot. 'DTA', 'DTB', 'DIA', 'DIB', 'DC'
-#     '''
-#     # mpl.rcParams['lines.linestyle'] = '--'
-#     df = diffusivity_data.data.copy()
-#     df = df[df['Literature'].isin(literature_list)]
-#     d_type, d_elem = diffusion_type[:2], diffusion_type[2:]
-#     df = df[df['Dtype'] == d_type]
-#     if len(Dtype) > 2:
-#         exp = exp[exp['Element'] == Dtype[2]]
-#
-#     # print(exp)
-#     temperature_list = exp['T_C'].unique()
-#     if not exp.empty:
-#         fit = df_model[df_model['T_C'].isin(temperature_list)].copy()
-#     else:
-#         fit = df_model
-#
-#     exp.rename(columns={'T_C': 'T $\degree$C'}, inplace=True)
-#     fit.rename(columns={'T_C': 'T $\degree$C'}, inplace=True)
-#     exp.rename(columns={'B_mp': Elements[1] + ' at.%'}, inplace=True)
-#     fit.rename(columns={'B_mp': Elements[1] + ' at.%'}, inplace=True)
-#
-#     if B_xlim:
-#         if len(B_xlim) != 2:
-#             raise ValueError("Length of B_xlim is not correct, should be 2.")
-#         xlim_low, xlim_high = B_xlim
-#         fit = fit[(fit[Elements[1] + ' at.%'] >= xlim_low) & (fit[Elements[1] + ' at.%'] <= xlim_high)]
-#
-#     if not exp.empty:
-#         sns.lineplot(data=fit, x=Elements[1] + ' at.%', y=Dtype + '_' + Model, hue='T $\degree$C', legend=False, ax=ax,
-#                      **kwargs)
-#         sns.scatterplot(data=exp, x=Elements[1] + ' at.%', y='Dexp', hue='T $\degree$C', style='Literature', s=s, ax=ax,
-#                         legend="full", **kwargs)
-#     else:
-#         # assume fit is not empty.
-#         sns.lineplot(data=fit, x=Elements[1] + ' at.%', y=Dtype + '_' + Model, hue='T $\degree$C', legend="full", ax=ax,
-#                      **kwargs)
-#     ax.set_yscale('log')
-#     ax.set_ylabel('D (m$^2$/s)')
-#     if B_xlim:
-#         ax.set_xlim(B_xlim[0], B_xlim[1])
-#     else:
-#         ax.set_xlim(0, 100)
-#     # ax.set_ylim(low, up)
-#
-#     handles, labels = ax.get_legend_handles_labels()
-#     axL.legend(handles=handles, labels=labels, loc='best', framealpha=1, edgecolor='w', ncol=int(len(handles) / 10)+1)
-#     axL.axis('off')
-#     ax.get_legend().remove()
-#     mpl.rcParams['lines.linestyle'] = '-'
+def func():
+    return False
+
+
+def conditions_plot(diffusion_data, grid_data, literature_list, x_type, ax, ax_legend, diffusion_type="DT",
+                    element="A", x_axis_element="B", inv_temp_numerator=1E4, **kwargs):
+    '''
+    Dtype : string
+        Type of diffusion coefficients to plot. 'DTA', 'DTB', 'DIA', 'DIB', 'DC'
+    '''
+    df_exp = diffusion_data.data.copy()
+    elements = diffusion_data.elements
+    df_grid = grid_data.copy()
+    df_exp = df_exp[df_exp['Literature'].isin(literature_list) & (df_exp['Dtype'] == diffusion_type)]
+    if element in {"A", "B"}:
+        df_exp = df_exp[df_exp["Element"] == element]
+
+    if x_type.lower() == "temperature":
+        temperature_list = df_exp['temp_celsius'].unique()
+        df_grid = df_grid[df_grid['temp_celsius'].isin(temperature_list)]
+
+        if not df_exp.empty:
+            sns.scatterplot(data=df_exp, x=f"comp_{x_axis_element}_mf", y='Dexp', hue='temp_celsius',
+                            style='Literature',
+                            ax=ax, legend="full", **kwargs)
+            sns.lineplot(data=df_grid, x=f"comp_{x_axis_element}_mf", y=diffusion_type + element, hue='temp_celsius',
+                         ax=ax,
+                         legend=False, linestyle="--", **kwargs)
+        else:
+            # assume fit is not empty.
+            sns.lineplot(data=df_grid, x=f"comp_{x_axis_element}_mf", y=diffusion_type + element, hue='temp_celsius',
+                         ax=ax, legend="full", linestyle="--", **kwargs)
+        ax.set_xlabel(f'Mole fraction of {elements[constants.ELEMENTS_ORDER[x_axis_element]]}')
+
+    elif x_type.lower() == "composition":
+        composition_list = df_exp['comp_A_mf'].unique()
+        df_grid = df_grid[df_grid['comp_A_mf'].isin(composition_list)]
+        df_exp["reverse_T"] = df_exp["temp_kelvin"].mul(1 / inv_temp_numerator)
+        df_grid["reverse_T"] = df_grid["temp_kelvin"].mul(1 / inv_temp_numerator)
+
+        if not df_exp.empty:
+            sns.scatterplot(data=df_exp, x="reverse_T", y='Dexp', hue='comp_A_mf',
+                            style='Literature',
+                            ax=ax, legend="full", **kwargs)
+            sns.lineplot(data=df_grid, x="reverse_T", y=diffusion_type + element, hue='comp_A_mf',
+                         ax=ax, legend=False, linestyle="--", **kwargs)
+        else:
+            # assume fit is not empty.
+            sns.lineplot(data=df_grid, x="reverse_T", y=diffusion_type + element, hue='comp_A_mf',
+                         ax=ax, legend="full", linestyle="--", **kwargs)
+        ax.set_xlabel(f'{inv_temp_numerator}/T (K$^{-1}$)')
+
+    ax.set_ylabel(f'{elements[constants.ELEMENTS_ORDER[element]]} '
+                  f'{constants.DIFFUSION_TYPES[diffusion_type]} D (m$^2$/s)')
+    low = 10 ** np.floor(np.log10(min(df_exp["Dexp"].min(),
+                                      df_grid[df_grid[diffusion_type + element] > 0][diffusion_type + element].min())))
+    up = 10 ** np.ceil(np.log10(max(df_exp["Dexp"].max(), df_grid[diffusion_type + element].max())))
+    ax.set_ylim(low, up)
+    ax.set_yscale('log')
+
+    # ax_legend.get_legend().get_texts()[0].set_text("T $\degree$C")
+    handles, labels = ax.get_legend_handles_labels()
+    if x_type.lower() == "temperature":
+        labels[0] = "T $\degree$C"
+    elif x_type.lower() == "composition":
+        labels[0] = f"{elements[constants.ELEMENTS_ORDER[element]]} mol/mol"
+    ax_legend.legend(handles=handles, labels=labels, loc='best', framealpha=1, edgecolor='w',
+                     ncol=int(len(handles) / 15) + 1)
+    ax_legend.axis('off')
+    ax.get_legend().remove()
