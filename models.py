@@ -40,12 +40,13 @@ class DiffusivityData:
         Raises: TypeError when the format of datafile is not included.
         """
         if datafile.endswith('.xlsx'):
-            self.data = pd.read_excel(datafile)
+            self.data = pd.read_excel(datafile, sheet_name=self.system)
         elif datafile.endswith('.csv'):
             self.data = pd.read_csv(datafile)
         else:
             raise TypeError("The extension of the file should be .csv or .xlsx.")
 
+        self.data.dropna(axis=0, subset=["Weight"], inplace=True)
         # if process_data:
         if "A_mp" in self.data.columns:
             self.data["comp_A_mf"] = self.data["A_mp"] / 100

@@ -1,0 +1,2 @@
+note:
+A: { B, C}    means diffusion of A in {B, C}.
