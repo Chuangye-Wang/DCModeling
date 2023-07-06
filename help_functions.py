@@ -144,7 +144,7 @@ def binary_diffusion_coefs(model_params, comp1_mf, temp_kelvin, thermodynamic_fa
     """
     dt_1, dt_2 = tracer_diffusion_coefs(model_params, comp1_mf, temp_kelvin, end_dc)
     di_1, di_2 = thermodynamic_factor * dt_1, thermodynamic_factor * dt_2
-    dc = (1 - comp1_mf) * di_2 + comp1_mf * di_1
+    dc = (1 - comp1_mf) * di_1 + comp1_mf * di_2
 
     return {"DTA": dt_1, "DTB": dt_2, "DIA": di_1, "DIB": di_2, "DC": dc}
 

@@ -1,9 +1,4 @@
-# class Constant:
-#     """ To provides common constants values for calculations.
-#     """
-#     def __init__(self):
-#         self.gas_const = 8.3145  # unit: J/mol/K
-#         self.celsius_kelvin_offset = 273  # unit: K
+""" Constants used in this package. """
 
 GAS_CONSTANT = 8.3145  # unit: J/mol/K
 CELSIUS_KELVIN_OFFSET = 273  # unit: K

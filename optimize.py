@@ -6,52 +6,45 @@ from scipy.optimize import least_squares, minimize
 
 class Optimizer:
     """
-    An optimizer to optimize interaction parameters in the diffusion model.
+    An optimizer to optimize interaction parameters in the diffusion model. Two methods are employed, and they are
+    scipy.optimize.least_squares and scipy.optimize.minimize functions.
+
+    https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html
+    https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html
+
+    Attributes:
+        diffusivity_data: A DiffusionData object that has all experimental info.
+        model: A string for which diffusion model to use to describe the diffusion behavior in the system.
+        method: A string for which optimization or minimization method to use.
+        init_params: An array denoting the initialized values for parameters in the diffusion model.
+        optimized_results: A dict to store the optimized results.
     """
 
     def __init__(self, diffusivity_data, model='1-para', method="least_squares"):
+        """ Initialize.
+        Args:
+            diffusivity_data: A DiffusionData object that has all experimental info.
+            model: A string for which diffusion model to use to describe the diffusion behavior in the system.
+            method: A string for which optimization or minimization method to use.
+        """
         self.diffusivity_data = diffusivity_data
         self.model = model
-        # self.model_structure = model_structure
+        self.method = method
         # initialize model parameters
         self.init_params = np.random.random(int(self.model.split("-")[0]))
+
         # initialize which method to use for optimization.
         if method not in ("least_squares", "minimize"):
             raise ValueError("The method should be either least_squares or minimize.")
-        self.method = method
+
         self.optimized_results = {"OptimizedResult": None,
                                   "mse": None,
                                   "optimized_params": []}
 
-    # def diffusion_coefs_calc(self, coefs):
-    #     """
-    #     To calculate the diffusion coefficients using the diffusion model.
-    #     Returns:
-    #         None.
-    #     """
-    #     tracer_dc1, tracer_dc2 = tracer_diffusion_coefs(coefs, self.diffusivity_data.data.comp_A_mf,
-    #                                                     self.diffusivity_data.data.temp_kelvin,
-    #                                                     self.diffusivity_data.end_dc)
-    #     intrinsic_dc1 = tracer_dc1 * self.diffusivity_data.data.TF
-    #     intrinsic_dc2 = tracer_dc2 * self.diffusivity_data.data.TF
-    #     inter_dc = \
-    #         self.diffusivity_data.data.comp_A_mf * intrinsic_dc2 + \
-    #         self.diffusivity_data.data.comp_B_mf * intrinsic_dc1
-    #     diffusion_types = pd.get_dummies(self.diffusivity_data.data.Dtype)
-    #     diffusion_elements = pd.get_dummies(self.diffusivity_data.data.Element)
-    #
-    #     diffusion_coefs = \
-    #         diffusion_types.get("DC", 0) * inter_dc + \
-    #         diffusion_types.get("DT", 0) * diffusion_elements.get("A", 0) * tracer_dc1 + \
-    #         diffusion_types.get("DT", 0) * diffusion_elements.get("B", 0) * tracer_dc2 + \
-    #         diffusion_types.get("DI", 0) * diffusion_elements.get("A", 0) * intrinsic_dc1 + \
-    #         diffusion_types.get("DI", 0) * diffusion_elements.get("B", 0) * intrinsic_dc2
-    #
-    #     return diffusion_coefs
-
     def residual_error(self, coefs):  # T in K
         """
         To calculate the residual error between log D and log D_predicted, which is weighted.
+        This is used for least_square optimization.
         Returns:
             None.
         """
@@ -60,9 +53,29 @@ class Optimizer:
             * self.diffusivity_data.data.Weight
 
     def residual_error_for_minimize(self, coefs):
+        """
+        To calculate the residual error between log D and log D_predicted, which is already summed.
+        This is specifically used for minimize optimization.
+        Returns:
+            None.
+        """
         return 0.5 * np.sum(np.square(self.residual_error(coefs)))
 
     def optimize(self, **kwargs):
+        """
+        To optimize the object function.
+        Args:
+            **kwargs: Arbitrary keyword arguments for optimize functions. Optimization functions include
+            least_squares and minimize methods.
+            some keys for least_squares:
+                {
+                    method: A string for the algorithm used to perform minimization.
+                    loss: A string for loss function.
+                    f_scale: A float for value of soft margin between inlier and outlier residuals.
+                }
+        Returns:
+            None
+        """
         if not self.init_params:
             predicted_diffusion_coefs = self.diffusivity_data.diffusion_coefs_calc(self.init_params)
             total_square_err = total_square_error(self.diffusivity_data.data.Dexp, predicted_diffusion_coefs,

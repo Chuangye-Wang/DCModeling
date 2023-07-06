@@ -9,13 +9,29 @@ from help_functions import *
 
 
 class DiffusivityData:
+    """
+    A class include all the information needed to evaluate the diffusion model based on the experimental diffusion
+    coefficients data.
+
+    Attributes:
+        data: A DataFrame to store the experimental data.
+        elements: A list of elements in the system.
+        system: A string for naming the system.
+        phase: A string for the structure in the system.
+        thermodynamic_interaction_parameters: A dict including thermodyanmic interaction parameters that will be used
+            to calculate the thermodynamic factor.
+        end_dc: A dict for the diffusion coefficients data of the four end members (impurity and self-diffusion).
+        unit: A dict storing units for the data.
+    """
+
     def __init__(self, elements: list, phase: str = "FCC_A1"):
         """
+        To initialize the DiffusivityData class.
         Args:
             elements: A list of elements in the system.
             phase: A string for the structure in the system.
         """
-        # DataFrame to keep the experimental data
+        # DataFrame to store the experimental data
         self.data = None
         elements.sort()
         self.elements = elements
@@ -81,6 +97,18 @@ class DiffusivityData:
         """
         self.end_dc = end_member_diffusion_coefs(self.elements, datafile, self.data.temp_kelvin)
 
+    def set_weight(self, weights=dict()):
+        """
+        To set the weights for literature.
+        Args:
+            weights: A dictionary with (literature, weight) pair information.
+
+        Returns:
+            None.
+        """
+        for literature, weight in weights.items():
+            self.data.loc[self.data["Literature"] == literature, "Weight"] = weight
+
     def thermodynamic_factor_calc(self, database_mode="json", database="TCNI11", engine="Thermo-Calc"):
         """
         To calculate thermodynamic factor in two different ways.
@@ -130,7 +158,16 @@ class DiffusivityData:
 
 
 class EndMemberData:
-    """ The model for predicting self and impurity diffusion coefficients using Arrhenius equation.
+    """ A class for predicting self and impurity diffusion coefficients using Arrhenius equation.
+
+    Attributes:
+        diffusion_coef: A DataFrame to store the experimental data.
+        temp_celsius: An array or pd.Series for the temperature (in celsius).
+        temp_kelvin: An array or pd.Series for the temperature (in kelvin).
+        pre_factor: Float or list-based for pre factor in Arrhenius equation.
+            float for D = D_0 * exp(-Q/R/T);
+            list-based for D = D_0 * exp(-Q_0/R/T) + D_1 * exp(-Q_1/R/T).
+        activ_energy: Float or list-based for activation energy in Arrhenius equation.
     """
 
     def __init__(self):
