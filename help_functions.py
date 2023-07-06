@@ -206,7 +206,6 @@ def thermodynamic_factor_calphad_engine(data, elements: list, database: str, pha
 
 def thermodynamic_factor_user_defined(interaction_parameters: dict, comps_1, comps_2, temp_kelvin):
     """ To calculate the thermodynamic factor according to the definition of it.
-
     Args:
         interaction_parameters: A dict for interaction parameter.
         comps_1: An array or pd.Series for the composition of element A in mole fraction.
@@ -234,6 +233,19 @@ def thermodynamic_factor_user_defined(interaction_parameters: dict, comps_1, com
 
 
 def comp_temp_dataframe(comps: list, temps: list, element="A", comp_unit="mole_fraction", temp_unit="celsius"):
+    """
+    To map a grid of composition-temperature values into a DataFrame for compositions and temperatures columns.
+    This DataFrame will be used to calculate the corresponding diffusion coefficients.
+    Args:
+        comps: list-like compositions.
+        temps: list-like temperatures.
+        element: a string indicating which element the composition is for.
+        comp_unit: a string for unit of composition. options: (mole_fraction, mole_percent).
+        temp_unit: a string for unit of temperature. options: (celsius, kelvin).
+
+    Returns:
+        A DataFrame with composition and temperature information.
+    """
     if comp_unit.lower() == "mole_percent":
         comps /= ATOMIC_PERCENT_MAX
     if temp_unit.lower() == "kelvin":
@@ -242,5 +254,40 @@ def comp_temp_dataframe(comps: list, temps: list, element="A", comp_unit="mole_f
         comps = [1 - comp for comp in comps]
     comp_x, temp_y = np.meshgrid(comps, temps)
     comp_1_mf, temp_celsius = comp_x.flatten(), temp_y.flatten()
+
     return pd.DataFrame({"comp_A_mf": comp_1_mf, "comp_B_mf": 1 - comp_1_mf,
                          "temp_celsius": temp_celsius, "temp_kelvin": temp_celsius + CELSIUS_KELVIN_OFFSET})
+
+
+def end_member_database_from_excel_to_json(data_file, save_file):
+    """
+    To convert the pre-factor and activation energy values from excel to json format file.
+    Args:
+        data_file: A string for the path to Excel file with stored data.
+        save_file: A string for the path to json file (to be saved).
+
+    Returns:
+        None.
+    """
+    data_pre_factor = pd.read_excel(data_file, sheet_name="D0")
+    data_activ_energy = pd.read_excel(data_file, sheet_name="Q")
+    data_pre_factor.set_index("Unnamed: 0", inplace=True)
+    data_activ_energy.set_index("Unnamed: 0", inplace=True)
+    print(data_pre_factor)
+    columns = list(data_pre_factor.columns)
+    rows = columns
+    all_factors = {}
+    for col in columns:
+        matrix = {}
+        for row in rows:
+            pre_factor = data_pre_factor.loc[row][col]
+            activ_energy = data_activ_energy.loc[row][col]
+            if not pd.isna(pre_factor) and not pd.isna(activ_energy):
+                matrix[row] = {}
+                matrix[row]["D0"] = pre_factor
+                matrix[row]["Q"] = activ_energy
+        all_factors[col] = matrix
+
+    all_factors = dict(sorted(all_factors.items(), key=lambda x: x[0]))
+    with open(save_file, "w") as output_file:
+        json.dump(all_factors, output_file, indent=4)

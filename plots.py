@@ -114,10 +114,13 @@ def conditions_plot(diffusion_data, grid_data, literature_list, x_type, ax, ax_l
             # assume fit is not empty.
             sns.lineplot(data=df_grid, x="reverse_T", y=diffusion_type + element, hue='comp_A_mf',
                          ax=ax, legend="full", linestyle="--", **kwargs)
-        ax.set_xlabel(f'{inv_temp_numerator}/T (K$^{-1}$)')
+        ax.set_xlabel(f'{inv_temp_numerator}/T (1/K))')
 
-    ax.set_ylabel(f'{elements[constants.ELEMENTS_ORDER[element]]} '
-                  f'{constants.DIFFUSION_TYPES[diffusion_type]} D (m$^2$/s)')
+    if element:
+        ax.set_ylabel(f'{elements[constants.ELEMENTS_ORDER[element]]} '
+                      f'{constants.DIFFUSION_TYPES[diffusion_type]} D (m$^2$/s)')
+    else:
+        ax.set_ylabel(f'{constants.DIFFUSION_TYPES[diffusion_type]} D (m$^2$/s)')
     low = 10 ** np.floor(np.log10(min(df_exp["Dexp"].min(),
                                       df_grid[df_grid[diffusion_type + element] > 0][diffusion_type + element].min())))
     up = 10 ** np.ceil(np.log10(max(df_exp["Dexp"].max(), df_grid[diffusion_type + element].max())))
@@ -129,7 +132,7 @@ def conditions_plot(diffusion_data, grid_data, literature_list, x_type, ax, ax_l
     if x_type.lower() == "temperature":
         labels[0] = "T $\degree$C"
     elif x_type.lower() == "composition":
-        labels[0] = f"{elements[constants.ELEMENTS_ORDER[element]]} mol/mol"
+        labels[0] = f"{elements[0]} mol/mol"  # default element is the first one in the elements list.
     ax_legend.legend(handles=handles, labels=labels, loc='best', framealpha=1, edgecolor='w',
                      ncol=int(len(handles) / 15) + 1)
     ax_legend.axis('off')
