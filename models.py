@@ -46,7 +46,8 @@ class DiffusivityData:
         else:
             raise TypeError("The extension of the file should be .csv or .xlsx.")
 
-        self.data.dropna(axis=0, subset=["Weight"], inplace=True)
+        if "Weight" in self.data.columns():
+            self.data.dropna(axis=0, subset=["Weight"], inplace=True)
         # if process_data:
         if "A_mp" in self.data.columns:
             self.data["comp_A_mf"] = self.data["A_mp"] / 100
