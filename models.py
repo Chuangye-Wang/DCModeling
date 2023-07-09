@@ -224,17 +224,18 @@ class EndMemberData:
         else:
             pass
 
-    def plot(self, log_scale=True, base=10):
+    def plot(self, log_scale=True, base=10, inv_temp_numerator=1E4):
         """ To plot the diffusion coefficients vs temperature.
 
         Args:
             log_scale: A bool indicating whether using log scale for y-axis. True to use and False to not use.
             base: An int standing for the base of log function.
+            inv_temp_numerator: An integer indicating the number to be divided by the temperature data.
 
         Returns:
             None
         """
-        temp_inv = 10000 / self.temp_kelvin
+        temp_inv = inv_temp_numerator / self.temp_kelvin
         diffusion_coef_pred = arrhenius(self.pre_factor, self.activ_energy, self.temp_kelvin)
         fig, ax = plt.subplots()
         ax.scatter(temp_inv, self.diffusion_coef, color="red", marker="o")
@@ -244,7 +245,7 @@ class EndMemberData:
             ax.set_ylabel("log D (m$^2$/s)")
         else:
             ax.set_ylabel("D (m$^2$/s)")
-        ax.set_xlabel("10000/T ($K^{-1})$")
+        ax.set_xlabel(f"{inv_temp_numerator}/T ($1/K)$")
         plt.show()
 
 
