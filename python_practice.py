@@ -96,16 +96,19 @@ Removing all duplicates, except for the last one
 """
 class First(object):
     def __init__(self):
+        print("first-1")
         super(First, self).__init__()
         print("first")
 
 class Second(First):
     def __init__(self):
+        print("second-1")
         super(Second, self).__init__()
         print("second")
 
 class Third(First): # add parent class first will create different MRO.
     def __init__(self):
+        print("third-1")
         super(Third, self).__init__()
         print("third")
 
@@ -132,7 +135,8 @@ fourth.a = 11
 fourth._b = 111
 print(fourth.a, fourth.b)
 print("super returns: ", super(Second))
-print(Fourth.__bases__)
+# print(Fourth.__bases__)
+print(Fourth.__dir__)
 print(Second)
 
 

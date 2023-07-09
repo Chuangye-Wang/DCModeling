@@ -33,6 +33,25 @@ def arrhenius(pre_factor, activ_energy, temp_kelvin):
         return pf1 * np.exp(-ae1 / GAS_CONSTANT / temp_kelvin) + pf2 * np.exp(-ae2 / GAS_CONSTANT / temp_kelvin)
 
 
+def brown_ashby_correlation(structure: str, melting_temp, temp_kelvin):
+    """
+    To calculate the diffusion coefficients of end members by the Brown-Ashby correlation.
+    Args:
+        structure: A string for the crystal structure of the element.
+        melting_temp: A float for the melting temperature of the element.
+        temp_kelvin: A list-like iterable for the temperatures at which to calculate the diffusivity.
+
+    Returns:
+        An array-like iterable.
+    """
+    structure = structure.lower()
+    if isinstance(temp_kelvin, list):
+        temp_kelvin = np.array(temp_kelvin)
+    pre_factor, exp_factor = BROWN_ASHBY_CORRELATION[structure]
+
+    return pre_factor * np.exp(-exp_factor * melting_temp / temp_kelvin)
+
+
 def end_member_diffusion_coefs(elements: list, datafile: str, temp_kelvin):
     """
     To read the pre factor and activation energy for end members from json datafile.
