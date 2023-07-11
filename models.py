@@ -62,7 +62,7 @@ class DiffusivityData:
         else:
             raise TypeError("The extension of the file should be .csv or .xlsx.")
 
-        if "Weight" in self.data.columns():
+        if "Weight" in self.data.columns:
             self.data.dropna(axis=0, subset=["Weight"], inplace=True)
         # if process_data:
         if "A_mp" in self.data.columns:
@@ -84,7 +84,7 @@ class DiffusivityData:
         """
         with open(datafile) as file:
             json_data = json.load(file)
-        self.thermodynamic_interaction_parameters = json_data.get(self.system).get(self.phase)
+        self.thermodynamic_interaction_parameters = json_data
 
     def end_member_calc(self, datafile):
         """
@@ -123,8 +123,10 @@ class DiffusivityData:
         if database_mode.lower() == "json":
             if self.thermodynamic_interaction_parameters is None:
                 raise ValueError("Please define thermodynamic_interaction_parameters first!")
-            self.data["TF"] = thermodynamic_factor_user_defined(self.thermodynamic_interaction_parameters,
-                                                                self.data["comp_A_mf"], self.data["comp_B_mf"],
+            self.data["TF"] = thermodynamic_factor_user_defined(self.system,
+                                                                self.phase,
+                                                                self.thermodynamic_interaction_parameters,
+                                                                self.data["comp_B_mf"],
                                                                 self.data["temp_kelvin"])
         elif database_mode.lower() == "calphad":
             self.data["TF"] = thermodynamic_factor_calphad_engine(self.data, elements=self.elements, database=database,
