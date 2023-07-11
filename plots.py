@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 import seaborn as sns
 import matplotlib
@@ -51,12 +53,12 @@ def exp_vs_pred_plot(df, model, ax=None, ax_legend=None, off_value=3, logx=True,
         ax.set_xscale('log')
 
     low = 10 ** np.floor(np.log10(min(df[df['D_' + model] > 0][['Dexp', 'D_' + model]].min())))
-    up = 10 ** np.ceil(np.log10(max(df[['Dexp', 'D_' + model]].max())))
-    ax.plot([low, up], [low, up], c='k')
-    ax.plot([low / off_value, up / off_value], [low, up], 'k:')
-    ax.plot([low * off_value, up * off_value], [low, up], 'k:')
-    ax.set_xlim(low, up)
-    ax.set_ylim(low, up)
+    high = 10 ** np.ceil(np.log10(max(df[['Dexp', 'D_' + model]].max())))
+    ax.plot([low, high], [low, high], c='k')
+    ax.plot([low / off_value, high / off_value], [low, high], 'k:')
+    ax.plot([low * off_value, high * off_value], [low, high], 'k:')
+    ax.set_xlim(low, high)
+    ax.set_ylim(low, high)
     ax.set_xlabel('Experimental D (m$^2$/s)')
     ax.set_ylabel('Predicted D (m$^2$/s)')
 
@@ -96,9 +98,9 @@ def conditions_plot(diffusion_data, grid_data, literature_list, x_type, ax, ax_l
     Returns:
         None.
     """
-    df_exp = diffusion_data.data.copy()
+    df_exp = copy.deepcopy(diffusion_data.data)
     elements = diffusion_data.elements
-    df_grid = grid_data.copy()
+    df_grid = copy.deepcopy(grid_data)
     df_exp = df_exp[df_exp['Literature'].isin(literature_list) & (df_exp['Dtype'] == diffusion_type)]
     if element in {"A", "B"}:
         df_exp = df_exp[df_exp["Element"] == element]
@@ -153,12 +155,16 @@ def conditions_plot(diffusion_data, grid_data, literature_list, x_type, ax, ax_l
         ax.set_ylabel(f'{constants.DIFFUSION_TYPES[diffusion_type]} D (m$^2$/s)')
     low = 10 ** np.floor(np.log10(min(df_exp["Dexp"].min(),
                                       df_grid[df_grid[diffusion_type + element] > 0][diffusion_type + element].min())))
-    up = 10 ** np.ceil(np.log10(max(df_exp["Dexp"].max(), df_grid[diffusion_type + element].max())))
-    ax.set_ylim(low, up)
+    high = 10 ** np.ceil(np.log10(max(df_exp["Dexp"].max(), df_grid[diffusion_type + element].max())))
+    ax.set_ylim(low, high)
+
     if list(x_plot_range):
         ax.set_xlim(x_plot_range[0], x_plot_range[1])
     else:
-        ax.set_xlim(0, 1)
+        if x_type.lower() == "composition":
+            ax.set_xlim(0, 1)
+        elif x_type.lower() == "temperature":
+            ax.set_xlim(inv_temp_numerator/2000, inv_temp_numerator/500)
     ax.set_yscale('log')
 
     # ax_legend.get_legend().get_texts()[0].set_text("T $\degree$C")

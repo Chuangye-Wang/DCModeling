@@ -25,3 +25,9 @@ BROWN_ASHBY_CORRELATION = {
     "diamond_cubic": [6.3E-2, 33.9],
     "hcp_graphite": [2.4E-4, 20],
 }
+
+P_VALUES = {
+    "fcc": 0.28,
+    "bcc": 0.4,
+    "hcp": 0.28,
+}
