@@ -7,5 +7,5 @@
 
 ### Thermodynamic factor calculation.
 
-![thermodynamic factor](https://github.com/Chuangye-Wang/DCModeling/blob/main/FeNi/FeNi_Thermo-calc_vs_user-database.png)
+![thermodynamic factor](https://github.com/Chuangye-Wang/DCModeling/blob/main/examples/FeNi/FeNi_Thermo-calc_vs_user-database.png)
 
