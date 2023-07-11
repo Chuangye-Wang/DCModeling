@@ -1,0 +1,37 @@
+{
+  "end member": {
+    "G": {
+        "Fe": 0,
+        "Co": 0,
+        "Ni": 0
+      },
+    "TC": {
+      "Fe": "67",
+      "Ni": "627",
+      "Co": "1394"
+    },
+    "BMAGN": {
+      "Fe": "0.7",
+      "Ni": "0.61",
+      "Co": "1.35"
+    }
+  },
+  "CoFe": {
+    "FCC_A1": {
+      "excess": {
+        "L0": "-9112 + 3.3*T",
+        "L1": "0",
+        "L2": "1667"
+      },
+      "TC": {
+        "L0": 283,
+        "L1": 879
+      },
+      "BMAGN": {
+        "L0": 8.9,
+        "L1": -3.9
+      }
+    }
+  },
+  "comment": "Ohnuma et al. - Phase equilibria in the Fe–Co binary system"
+}

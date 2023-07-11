@@ -70,7 +70,7 @@ class DiffusivityData:
             self.data["comp_B_mf"] = 1 - self.data["comp_A_mf"]
 
         if "T_C" in self.data.columns:
-            self.data["temp_celsius"] = self.data["T_C"]
+            self.data["temp_celsius"] = self.data["T_C"].astype(float)
             self.data["temp_kelvin"] = self.data["temp_celsius"] + CELSIUS_KELVIN_OFFSET
 
     def load_interaction_parameters(self, datafile):
@@ -123,11 +123,9 @@ class DiffusivityData:
         if database_mode.lower() == "json":
             if self.thermodynamic_interaction_parameters is None:
                 raise ValueError("Please define thermodynamic_interaction_parameters first!")
-            self.data["TF"] = thermodynamic_factor_user_defined(self.system,
-                                                                self.phase,
+            self.data["TF"] = thermodynamic_factor_user_defined(self.elements, self.phase,
                                                                 self.thermodynamic_interaction_parameters,
-                                                                self.data["comp_B_mf"],
-                                                                self.data["temp_kelvin"])
+                                                                self.data["comp_B_mf"], self.data["temp_kelvin"])
         elif database_mode.lower() == "calphad":
             self.data["TF"] = thermodynamic_factor_calphad_engine(self.data, elements=self.elements, database=database,
                                                                   phase=self.phase, engine=engine)

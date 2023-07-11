@@ -5,11 +5,11 @@
         "Ni": 0
       },
     "TC": {
-      "Fe": "1043",
+      "Fe": "67",
       "Ni": "627"
     },
     "BMAGN": {
-      "Fe": "2.15",
+      "Fe": "0.7",
       "Ni": "0.61"
     }
   },
@@ -32,5 +32,6 @@
       }
     }
   },
-  "comment": "Yang, Bo, et al. Experimental Investigation and Thermodynamic Modelling of the Fe-Ni-Ta System"
+  "comment": "Yang, Bo, et al. Experimental Investigation and Thermodynamic Modelling of the Fe-Ni-Ta System. This is the one Thermo-Calc used."
+
 }
