@@ -224,10 +224,10 @@ def thermodynamic_factor_calphad_engine(data, elements: list, database: str, pha
             return results.get_values_of('TF')
 
 
-def thermodynamic_factor_user_defined(alloy_system, phase, interaction_parameters: dict, comps_2, temp_kelvin):
+def thermodynamic_factor_user_defined(elements, phase, interaction_parameters: dict, comps_2, temp_kelvin):
     """ To calculate the thermodynamic factor according to the definition of it.
     Args:
-        alloy_system: A string for the name of the binary system.
+        elements: A string for the name of the binary system.
         phase: A string for the phase name.
         interaction_parameters: A dict for interaction parameter.
         comps_2: An array or pd.Series for the composition of element B in mole fraction.
@@ -239,34 +239,35 @@ def thermodynamic_factor_user_defined(alloy_system, phase, interaction_parameter
     x, T = sp.symbols("x T")
 
     # The Gibbs energy expression excluding mechanical mixing term (x_A * G_A + x_B * G_B)
-    gibbs_energy_expr = gibbs_energy(alloy_system, phase, interaction_parameters)
+    gibbs_energy_expr = gibbs_energy(elements, phase, interaction_parameters)
 
     # psi symbol corresponds to the thermodynamic factor.
     psi_expr = (1 - x) * x / GAS_CONSTANT / T * sp.diff(gibbs_energy_expr, (x, 2))
 
-    # psi_func = sp.lambdify((x, T), psi_expr, "numpy")
+    # old way to calculate thermodynamic factor using list comprehension.
+    # tf = np.array([psi_expr.subs([(x, comp), (T, temp)]) if (comp != 1 and comp != 0) else 1
+    #                for comp, temp in zip(comps_2, temp_kelvin)])
 
-    # return psi_func(comps_2, temp_kelvin)
+    psi_func = sp.lambdify((x, T), psi_expr, "numpy")
+    tf = psi_func(comps_2, temp_kelvin)
+    tf[(comps_2 == 0) | (comps_2 == 1)] = 1
 
-    return [psi_expr.subs([(x, comp), (T, temp)]) for comp, temp in zip(comps_2, temp_kelvin)]
+    return tf
 
-def gibbs_energy(alloy_system, phase="FCC_A1", interaction_parameters={}):
+
+def gibbs_energy(elements, phase="FCC_A1", interaction_parameters={}):
     x, T = sp.symbols("x T")
-    mechanical_mixing_expr = gibbs_mechanical_mixing(interaction_parameters.get("end member", {}).get("G", {}))
+    alloy_system = "".join(elements)
+    mechanical_mixing_expr = gibbs_mechanical_mixing(elements, interaction_parameters.get("end member", {}).get("G", {}))
     ideal_mixing_expr = gibbs_ideal_mixing()
     excess_expr = gibbs_excess(interaction_parameters.get(alloy_system, {}).get(phase, {}).get("excess", {}))
-    magnetic_expr = gibbs_magnetic(alloy_system, phase, interaction_parameters)
-    print("???????????")
-    print(magnetic_expr)
+    magnetic_expr = gibbs_magnetic(elements, phase, interaction_parameters)
+
     return mechanical_mixing_expr + ideal_mixing_expr + excess_expr + magnetic_expr
 
 
-def gibbs_mechanical_mixing(interaction_parameters):
+def gibbs_mechanical_mixing(elements, interaction_parameters):
     x, T = sp.symbols("x T")
-    elements = list(interaction_parameters.keys())
-    if not elements:
-        return 0
-    elements.sort()
     elem1, elem2 = elements
     gibbs_energy_elem_1 = sp.simplify(interaction_parameters.get(elem1, 0))
     gibbs_energy_elem_2 = sp.simplify(interaction_parameters.get(elem2, 0))
@@ -292,28 +293,22 @@ def gibbs_excess(interaction_parameters):
     return (1 - x) * x * gibbs_energy_excess_expr
 
 
-def gibbs_magnetic(alloy_system, phase, interaction_parameters):
+def gibbs_magnetic(elements, phase, interaction_parameters):
     x, T = sp.symbols("x T")
-    tc_expr = tc_magnetic_expansion(alloy_system, phase, "TC", interaction_parameters)
-    bohr_magnetic_expr = tc_magnetic_expansion(alloy_system, phase, "BMAGN", interaction_parameters)
-
-    print(tc_expr)
-    print(bohr_magnetic_expr)
+    tc_expr = tc_magnetic_expansion(elements, phase, "TC", interaction_parameters)
+    bohr_magnetic_expr = tc_magnetic_expansion(elements, phase, "BMAGN", interaction_parameters)
 
     return GAS_CONSTANT * T * hillert_jarl_func(T/tc_expr) * sp.log(bohr_magnetic_expr + 1)
 
 
-def tc_magnetic_expansion(alloy_system, phase, prop, interaction_parameters):
+def tc_magnetic_expansion(elements, phase, prop, interaction_parameters):
     x, T = sp.symbols("x T")
     # puring mixing
-    mixing_expr = 0
     ip_end = interaction_parameters.get("end member", {}).get(prop, {})
-    elements = list(ip_end.keys())
-    if elements:
-        elements.sort()
-        elem1, elem2 = elements
-        mixing_expr += (1 - x) * sp.simplify(ip_end.get(elem1, 0)) + x * sp.simplify(ip_end.get(elem2, 0))
+    elem1, elem2 = elements
+    mixing_expr = (1 - x) * sp.simplify(ip_end.get(elem1, 0)) + x * sp.simplify(ip_end.get(elem2, 0))
 
+    alloy_system = "".join(elements)
     ip_tc = interaction_parameters.get(alloy_system, {}).get(phase, {}).get(prop, {})
 
     # excess term
@@ -325,9 +320,6 @@ def tc_magnetic_expansion(alloy_system, phase, prop, interaction_parameters):
         excess_expr += interaction_parameter_k * (1 - 2 * x) ** k
 
     excess_expr *= (1 - x) * x
-    # print(mixing_expr)
-    # print("----------")
-    # print(excess_expr)
 
     return mixing_expr + excess_expr
 
