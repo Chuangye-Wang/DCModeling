@@ -1,10 +1,5 @@
-import json
-
-import numpy as np
-import pandas as pd
 from matplotlib import pyplot as plt
 
-from constants import *
 from help_functions import *
 
 
@@ -82,7 +77,7 @@ class DiffusivityData:
         Returns:
             None.
         """
-        with open(datafile) as file:
+        with open(datafile, encoding='UTF-8') as file:
             json_data = json.load(file)
         self.thermodynamic_interaction_parameters = json_data
 

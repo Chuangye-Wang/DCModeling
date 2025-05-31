@@ -1,7 +1,6 @@
-import pandas as pd
+from scipy.optimize import least_squares, minimize
 
 from help_functions import *
-from scipy.optimize import least_squares, minimize
 
 
 class Optimizer:
@@ -76,24 +75,31 @@ class Optimizer:
         Returns:
             None
         """
-        if not self.init_params:
-            predicted_diffusion_coefs = self.diffusivity_data.diffusion_coefs_calc(self.init_params)
-            total_square_err = total_square_error(self.diffusivity_data.data.Dexp, predicted_diffusion_coefs,
-                                                  self.diffusivity_data.data.Weight)
-            self.optimized_results["mse"] = total_square_err
-        else:
-            if self.method == "least_squares":
-                if "loss" not in kwargs:
-                    kwargs["loss"] = "soft_l1"
-                results = least_squares(self.residual_error, self.init_params, **kwargs)
-                self.optimized_results["mse"] = results.cost
+        try:
+            if not self.init_params:
+                predicted_diffusion_coefs = self.diffusivity_data.diffusion_coefs_calc(self.init_params)
+                total_square_err = total_square_error(self.diffusivity_data.data.Dexp, predicted_diffusion_coefs,
+                                                      self.diffusivity_data.data.Weight)
+                self.optimized_results["mse"] = total_square_err
             else:
-                if "method" not in kwargs:
-                    kwargs["method"] = "BFGS"
-                results = minimize(self.residual_error_for_minimize, self.init_params, **kwargs)
-                self.optimized_results["mse"] = results.fun
+                if self.method == "least_squares":
+                    if "loss" not in kwargs:
+                        kwargs["loss"] = "soft_l1"
+                    results = least_squares(self.residual_error, self.init_params, **kwargs)
+                    self.optimized_results["mse"] = results.cost
+                else:
+                    if "method" not in kwargs:
+                        kwargs["method"] = "BFGS"
+                    results = minimize(self.residual_error_for_minimize, self.init_params, **kwargs)
+                    self.optimized_results["mse"] = results.fun
 
-            self.optimized_results["OptimizedResult"] = results
-            self.optimized_results["optimized_params"] = results.x
+                self.optimized_results["OptimizedResult"] = results
+                self.optimized_results["optimized_params"] = results.x
 
-        self.diffusivity_data.data["D_" + self.model] = self.diffusivity_data.diffusion_coefs_calc(self.optimized_results["optimized_params"])
+            self.diffusivity_data.data["D_" + self.model] = self.diffusivity_data.diffusion_coefs_calc(self.optimized_results["optimized_params"])
+        except ValueError:
+            print("Residuals are not finite in the initial point.")
+            print("---------- Calculated D ------------")
+            print(self.diffusivity_data.diffusion_coefs_calc(self.init_params))
+
+
