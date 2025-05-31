@@ -1,5 +1,4 @@
 import json
-import os
 
 import numpy as np
 import pandas as pd
@@ -64,7 +63,7 @@ def end_member_diffusion_coefs(elements: list, datafile: str, temp_kelvin):
     Returns:
         A dict containing the calculated diffusion coefficients of end members.
     """
-    with open(datafile) as file:
+    with open(datafile, encoding='UTF-8') as file:
         dict_data = json.load(file)
     end_dc = {}
     for elem1, label1 in zip(elements, ["A", "B"]):
@@ -206,7 +205,7 @@ def thermodynamic_factor_calphad_engine(data, elements: list, database: str, pha
         with TCPython() as session:
             calculation = (
                 session
-                # .set_cache_folder(os.path.basename(__file__) + "_cache")
+                .set_cache_folder(os.path.basename(__file__) + "_cache")
                 .select_database_and_elements(database, elements)
                 .without_default_phases()
                 .select_phase(phase)
