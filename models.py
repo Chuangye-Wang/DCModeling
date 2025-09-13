@@ -236,7 +236,7 @@ class EndMemberData:
         ax.scatter(temp_inv, self.diffusion_coef, color="red", marker="o")
         ax.plot(temp_inv, diffusion_coef_pred, color="black")
         if log_scale:
-            ax.set_yscale("log", basey=base)
+            ax.set_yscale("log", base=base)
             ax.set_ylabel("log D (m$^2$/s)")
         else:
             ax.set_ylabel("D (m$^2$/s)")
@@ -246,7 +246,7 @@ class EndMemberData:
 
 if __name__ == "__main__":
     model = EndMemberData()
-    file_p = "./examples/impurity_data_Ag_in_Cu.csv"
+    file_p = "examples/AgCu/impurity_data_Ag_in_Cu.csv"
     model.load_data(file_p)
     model.fitting()
     print(model.pre_factor, model.activ_energy)
