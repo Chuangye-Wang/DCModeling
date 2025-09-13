@@ -1,6 +1,7 @@
 from scipy.optimize import least_squares, minimize
 
 from help_functions import *
+from models import DiffusivityData
 
 
 class Optimizer:
@@ -12,17 +13,17 @@ class Optimizer:
     https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html
 
     Attributes:
-        diffusivity_data: A DiffusionData object that has all experimental info.
+        diffusivity_data: A DiffusivityData object that has all experimental info.
         model: A string for which diffusion model to use to describe the diffusion behavior in the system.
         method: A string for which optimization or minimization method to use.
         init_params: An array denoting the initialized values for parameters in the diffusion model.
         optimized_results: A dict to store the optimized results.
     """
 
-    def __init__(self, diffusivity_data, model='1-para', method="least_squares"):
+    def __init__(self, diffusivity_data: DiffusivityData, model='1-para', method="least_squares"):
         """ Initialize.
         Args:
-            diffusivity_data: A DiffusionData object that has all experimental info.
+            diffusivity_data: A DiffusivityData object that has all experimental info.
             model: A string for which diffusion model to use to describe the diffusion behavior in the system.
             method: A string for which optimization or minimization method to use.
         """

@@ -246,7 +246,7 @@ class EndMemberData:
 
 if __name__ == "__main__":
     model = EndMemberData()
-    file_p = "./examples/impurity_data_Ag_in_Cu.csv"
+    file_p = "examples/AgCu/impurity_data_Ag_in_Cu.csv"
     model.load_data(file_p)
     model.fitting()
     print(model.pre_factor, model.activ_energy)

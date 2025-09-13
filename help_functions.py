@@ -226,7 +226,8 @@ def thermodynamic_factor_calphad_engine(data, elements: list, database: str, pha
 def thermodynamic_factor_user_defined(elements, phase, interaction_parameters: dict, comps_2, temp_kelvin):
     """ To calculate the thermodynamic factor according to the definition of it.
     Args:
-        elements: A string for the name of the binary system.
+        elements: A list of elements with size of 2.
+            First element is labeled as A, second is labeled as B.
         phase: A string for the phase name.
         interaction_parameters: A dict for interaction parameter.
         comps_2: An array or pd.Series for the composition of element B in mole fraction.
