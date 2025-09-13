@@ -236,7 +236,7 @@ class EndMemberData:
         ax.scatter(temp_inv, self.diffusion_coef, color="red", marker="o")
         ax.plot(temp_inv, diffusion_coef_pred, color="black")
         if log_scale:
-            ax.set_yscale("log", basey=base)
+            ax.set_yscale("log", base=base)
             ax.set_ylabel("log D (m$^2$/s)")
         else:
             ax.set_ylabel("D (m$^2$/s)")
